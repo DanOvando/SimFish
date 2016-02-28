@@ -63,20 +63,22 @@
 #'
 #' @return list of real and observed data and plots
 #' @export
-simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, CalcFMSY = 0,
-                                    SmallNum = 1e-4, InitSmooth = 3, FmortPen = 3, RecruitPen = 3,
+simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, CalcFMSY = 1,
+                    SmallNum = 1e-4, InitSmooth = 3, FmortPen = 3, RecruitPen = 3,
                     CatchCVn = 0.01, CatchCVs = 0.01, IndexCVn = 0.05, IndexCVs = 0.05,
-                                    LenSampleN= 200, LenSampleS = 200, GrowthSDn = 20, GrowthSDs = 20,
-                                    surv50n = 90, surv95n =  150, surv50s = 90, surv95s = 150,
+                    LenSampleN= 200, LenSampleS = 200, GrowthSDn = 20, GrowthSDs = 20,
+                    surv50n = 90, surv95n =  150, surv50s = 90, surv95s = 150,
                     MaxAge = 30, NatMn = 0.2, NatMs = 0.2, VonKn = 0.2, VonKs = 0.2, LinfN = 300,
-                                 LinfS = 300, t0n = 0.9, t0s = 0.9, mat50n = 6, mat50s = 6, mat95n = 8, mat95s = 8,
-                                 alphaN = 1.7e-06, betaN = 3, alphaS = 1.7e-06, betaS = 3,
-                                 MaxMovingN = 0, MaxMovingS = 0, Move50n = 6, Move50s = 6, Move95n = 10, Move95s = 10,
-                                 steepnessN = 0.7, steepnessS = 0.7, sigmaRn = 0.001, sigmaRs =  0.001, RzeroN = 1e5,
-                                 RzeroS = 1e5,
+                    LinfS = 300, t0n = 0.9, t0s = 0.9, mat50n = 6, mat50s = 6, mat95n = 8, mat95s = 8,
+                    alphaN = 1.7e-06, betaN = 3, alphaS = 1.7e-06, betaS = 3,
+                    MaxMovingN = 0, MaxMovingS = 0, Move50n = 6, Move50s = 6, Move95n = 10, Move95s = 10,
+                    steepnessN = 0.7, steepnessS = 0.7, sigmaRn = 0.001, sigmaRs =  0.001,recruit_ac = 0, RzeroN = 1e5,
+                    RzeroS = 1e5,
                     sel50n = 190, sel50s = 190, sel95n = 225, sel95s = 225, HarvestControl = 3,
-                                 HistoricalF = 0.3, ConstantCatch = 0, ConstantF = 0.1, HCalpha = 0.05, HCbeta = 0.5 )
-  {
+                    HistoricalF = 0.3, ConstantCatch = 0, ConstantF = 0.1, HCalpha = 0.05, HCbeta = 0.5,
+                    price = 1, cost = 0.5, cost_beta = 1.3, q = 1e-5, use_fleetmodel = T, fleetmodel = 'Open Access',
+                    phi = 0.025)
+{
 
   #=======================
   #==simulation controls==
@@ -86,17 +88,17 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
 
 
 
-  Nsim <- Nsim   #out$OM$Nsim			# number of simulations to do in the MSE
-  SimYear <- SimYear #  out$OM$SimYear			# total number of years in simulation
+  #   Nsim <- Nsim   #out$OM$Nsim			# number of simulations to do in the MSE
+  #   SimYear <- SimYear #  out$OM$SimYear			# total number of years in simulation
   InitYear <- SimYear #out$OM$InitYear			# year in which MSE starts (i.e. the number of years of data available)
-  depletion	 <- depletion		# model is conditioned to a specific depletion given a trajectory of effort
-  CatchShareN	 <- CatchShareN		# the amount of effort allocated to a given area
+  #   depletion	 <- depletion		# model is conditioned to a specific depletion given a trajectory of effort
+  #   CatchShareN	 <- CatchShareN		# the amount of effort allocated to a given area
   CatchShareS	 <- 1-CatchShareN
-  SmallNum <- SmallNum
-  InitSmooth <- InitSmooth
-  FmortPen <- FmortPen
-  RecruitPen <- RecruitPen
-  CalcFMSY <- CalcFMSY
+  #   SmallNum <- SmallNum
+  #   InitSmooth <- InitSmooth
+  #   FmortPen <- FmortPen
+  #   RecruitPen <- RecruitPen
+  #   CalcFMSY <- CalcFMSY
   #==========================================================
   #=================population dynamics======================
   #=========================================================
@@ -105,7 +107,7 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   #==environment until climate change, then things change. MEH.
   #===========================================================
   #===========================================================
-  MaxAge <- MaxAge
+  #   MaxAge <- MaxAge
 
   Ages <- seq(1,MaxAge)
 
@@ -184,11 +186,18 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   steepnessS	<-  CleanInput(steepnessS, SimYear)
   sigmaRs	<-  CleanInput(sigmaRs, SimYear)
   RzeroS	<- CleanInput(RzeroS ,SimYear)
+  # Produce potentiall autocorrelated recruitment errors
+  RecErrN <- matrix(NA, nrow = Nsim, ncol = SimYear)
+  RecErrS <- matrix(NA, nrow = Nsim, ncol = SimYear)
+  RecErrN[,1] <- rnorm(Nsim,0,sigmaRn[1])
+  RecErrS[,1] <- rnorm(Nsim,0,sigmaRs[1])
 
-  RecErrN	<-matrix(rnorm(SimYear*Nsim,0,sigmaRn[1]),ncol=SimYear)
-  RecErrS	<-matrix(rnorm(SimYear*Nsim,0,sigmaRs[1]),ncol=SimYear)
+  for (t in 2:SimYear) {
+    RecErrN[,t]	<- RecErrN[, t - 1] * recruit_ac + rnorm(Nsim,0,sigmaRn[1])
 
- # Fishing Fleet ----
+    RecErrS[,t]	<- RecErrS[, t - 1] * recruit_ac + rnorm(Nsim,0,sigmaRs[1])
+  }
+  # Fishing Fleet ----
 
   sel50n	<-  CleanInput(sel50n, SimYear)
   sel95n	<-  CleanInput(sel95n, SimYear)
@@ -252,6 +261,8 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   VirInitN<-initialN(Rzero=RzeroN[1],NatM=NatMn[1],inAge=MaxAge)
   VirInitS<-initialN(Rzero=RzeroS[1],NatM=NatMs[1],inAge=MaxAge)
 
+  q <- 1/sum(VirInitN)
+
   VirBioN<- sum(VirInitN*matureN[1,]*WeightAtAgeN[1,])
   VirBioS<-sum(VirInitS*matureS[1,]*WeightAtAgeS[1,])
 
@@ -264,11 +275,19 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
 
   if(CalcFMSY==1)
   {
-    SearchFmort		<-seq(0.01,3*NatMn[1],(NatMn[1]-0.01)/100)
-    SearchYield		<-rep(0,length(SearchFmort))
-    SearchBiomass	<-rep(0,length(SearchFmort))
+    mort_length <- 10
+    #     browser()
+    #     SearchFmort		<-seq(0.01,3*NatMn[1],(NatMn[1]-0.01)/mort_length)
+    SearchFmort		<-seq(0.01,3*NatMn[1],length.out = mort_length)
+
+    SearchYield		<- rep(0,length(SearchFmort))
+    SearchBiomass	<- rep(0,length(SearchFmort))
+    SearchProfits	<- rep(0,length(SearchFmort))
+    SearchEffort	<- rep(0,length(SearchFmort))
+
     for(p in 1:length(SearchFmort))
     {
+      #       show(p)
       tempNn		<-matrix(ncol=MaxAge,nrow=100)
       tempNn[1,]		<-VirInitN
       tempNs		<-matrix(ncol=MaxAge,nrow=100)
@@ -279,18 +298,25 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
       tempRecS		<-rep(0,100)
       tempCatchAtAgeN	<-matrix(ncol=MaxAge,nrow=100)
       tempCatchAtAgeS	<-matrix(ncol=MaxAge,nrow=100)
-
+      tempEffortN	<- rep(0,100)
+      tempEffortS	<- rep(0,100)
+      tempProfitsN	<- rep(0,100)
+      tempProfitsS	<- rep(0,100)
       inFs<-SearchFmort[p]*CatchShareS
       inFn<-SearchFmort[p]*CatchShareN
 
-      for (j in 2:100)
+      for (j in 2:SimYear)
       {
-        for (i in 2:(MaxAge-1))
-        {
-          tempNn[j,i]		<-tempNn[j-1,i-1]*exp(-inFn*vulnN[1,i-1])*exp(-NatMn[1])
-          tempNs[j,i]		<-tempNs[j-1,i-1]*exp(-inFs*vulnS[1,i-1])*exp(-NatMs[1])
+        #         for (i in 2:(MaxAge-1))
+        #         {
+        #           tempNn[j,i]		<-tempNn[j-1,i-1]*exp(-inFn*vulnN[1,i-1])*exp(-NatMn[1])
+        #           tempNs[j,i]		<-tempNs[j-1,i-1]*exp(-inFs*vulnS[1,i-1])*exp(-NatMs[1])
+        tempNn[j,2:(MaxAge - 1)] <-tempNn[j-1,1: (MaxAge - 2)]*exp(-inFn*vulnN[1, 1 : (MaxAge - 2)])*exp(-NatMn[1])
 
-        }
+        tempNs[j,2:(MaxAge - 1)] <-tempNs[j-1,1: (MaxAge - 2)]*exp(-inFs*vulnS[1, 1 : (MaxAge - 2)])*exp(-NatMs[1])
+
+        #           tempNs[j,i]		<-tempNs[j-1,i-1]*exp(-inFs*vulnS[1,i-1])*exp(-NatMs[1])
+        # }
         tempNn[j,MaxAge]	<-(tempNn[j-1,(MaxAge-1)])*exp(-inFn*vulnN[1,MaxAge])*exp(-NatMn[1])+ tempNn[j-1,MaxAge]*exp(-inFn*vulnN[1,MaxAge])*exp(-NatMn[1])
         tempNs[j,MaxAge]	<-(tempNs[j-1,(MaxAge-1)])*exp(-inFs*vulnS[1,MaxAge])*exp(-NatMs[1])+ tempNs[j-1,MaxAge]*exp(-inFs*vulnS[1,MaxAge])*exp(-NatMs[1])
 
@@ -302,28 +328,39 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
                                    vulnIN=vulnS[1,],matureIN=matureS[1,],weightIN=WeightAtAgeS[1,],LenAtAgeIN=LenAtAgeS[1,], MaxAge = MaxAge)
         tempRecN[j]		<-tempNn[j,1]
         tempRecS[j]		<-tempNs[j,1]
-
         tempCatchAtAgeN[j,]	<-((vulnN[1,]*inFn)/(vulnN[1,]*inFn+NatMn[1])) * (1-exp(-(vulnN[1,]*inFn+NatMn[1]))) * tempNn[j-1,]
         tempCatchN[j]		<-sum(tempCatchAtAgeN[j,]*WeightAtAgeN[1,])
+        tempEffortN[j]  <- (1 - exp(-inFn))/q
+
+        tempProfitsN[j] <- price*tempCatchN[j] - cost * tempEffortN[j]^cost_beta
 
         tempCatchAtAgeS[j,]	<-((vulnS[1,]*inFs)/(vulnS[1,]*inFs+NatMs[1])) * (1-exp(-(vulnS[1,]*inFs+NatMs[1]))) * tempNs[j-1,]
         tempCatchS[j]		<-sum(tempCatchAtAgeS[j,]*WeightAtAgeS[1,]) #catch in weight
+        tempEffortS[j]  <- (1 - exp(-inFs))/q
+        tempProfitsS[j] <- price*tempCatchS[j] - cost * tempEffortS[j]^cost_beta
 
       }
-      SearchYield[p]	<-tempCatchS[j]+tempCatchN[j]
+      SearchYield[p]	<- tempCatchS[j] + tempCatchN[j]
       SearchBiomass[p]	<-EggsN+EggsS
-    }
+      SearchEffort[p] <- tempEffortN[j] + tempEffortS[j]
+      SearchProfits[p] <- tempProfitsN[j] + tempProfitsS[j]
+    } # close SearchFmort
 
-    trueFMSY	<-SearchFmort[which.max(SearchYield)]
-    trueUMSY	<- 1-(exp(-trueFMSY))
-    trueBMSY	<-SearchBiomass[which.max(SearchYield)]
-    trueMSY	<-max(SearchYield)
-
-    dev.new()
-    par(mfrow=c(1,2))
-    plot(SearchYield~SearchFmort)
-    plot(SearchYield~SearchBiomass)
+    trueFMSY <-SearchFmort[which.max(SearchYield)]
+    trueFMEY <-SearchFmort[which.max(SearchProfits)]
+    trueUMSY <- 1-(exp(-trueFMSY))
+    trueUMEY <- 1-(exp(-trueFMEY))
+    trueBMSY <- SearchBiomass[which.max(SearchYield)]
+    trueBMEY <- SearchBiomass[which.max(SearchProfits)]
+    trueMSY	<- max(SearchYield)
+    trueMEY	<- SearchYield[which.max(SearchProfits)]
+    trueProfitsMEY <- SearchProfits[which.max(SearchProfits)]
+    #     dev.new()
+    #     par(mfrow=c(1,2))
+    #     plot(SearchYield~SearchFmort)
+    #     plot(SearchYield~SearchBiomass)
   }
+
   #=========================================================================
   # INITALIZE THE POPULATION
   # Option 1: Set the initial conditions by scaling the specified F series
@@ -416,22 +453,65 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     tempNs[1,]	<-VirInitS
     tempCatchN	<-rep(0,InitYear)
     tempCatchS	<-rep(0,InitYear)
+    tempEffortN	<-rep(0,InitYear)
+    tempEffortS	<-rep(0,InitYear)
+    tempProfitsN	<-rep(0,InitYear)
+    tempProfitsS	<-rep(0,InitYear)
     tempRecN	<-rep(0,InitYear)
     tempRecS	<-rep(0,InitYear)
     tempCatchAtAgeN	<-matrix(ncol=MaxAge,nrow=InitYear)
     tempCatchAtAgeS	<-matrix(ncol=MaxAge,nrow=InitYear)
 
-    HistoricalFs<-HistoricalF
-    HistoricalFn<-HistoricalF
+    HistoricalFs <- HistoricalF
+    HistoricalFn <- HistoricalF
+
+    HistoricalEfforts <- (1 - exp(-HistoricalF))/q
+    HistoricalEffortn <- (1 - exp(-HistoricalF))/q
+
+    tempNn[1,2:(MaxAge - 1)] <-tempNn[1, 1: (MaxAge - 2)]*exp(-HistoricalFn[1] * vulnN[1, 1 : (MaxAge - 2)])*exp(-NatMn[1])
+
+    tempNs[1,2:(MaxAge - 1)] <-tempNs[1, 1: (MaxAge - 2)]*exp(-HistoricalFs[1] * vulnS[1, 1 : (MaxAge - 2)])*exp(-NatMs[1])
+
+    tempNn[1,MaxAge]	<- (tempNn[1,(MaxAge-1)])*exp(-HistoricalFn[1]*vulnN[1,MaxAge])*exp(-NatMn[1])+ tempNn[1,MaxAge]*exp(-HistoricalFn[1]*vulnN[1,MaxAge])*exp(-NatMn[1])
+    tempNs[1,MaxAge]	<-(tempNs[1,(MaxAge-1)])*exp(-HistoricalFs[1]*vulnS[1,MaxAge])*exp(-NatMs[1])+ tempNs[1,MaxAge]*exp(-HistoricalFs[1]*vulnS[1,MaxAge])*exp(-NatMs[1])
+
+    EggsN			<-sum(tempNn[1,]*matureN[1,]*WeightAtAgeN[1,])
+    EggsS			<-sum(tempNs[1,]*matureS[1,]*WeightAtAgeS[1,])
+
+    tempNn[1,1]		<-Recruitment(EggsIN=EggsN,steepnessIN=steepnessN[1],RzeroIN=RzeroN[1],RecErrIN=RecErrN[1,1],recType="BH",NatMin=NatMn[1],
+                               vulnIN=vulnN[1,],matureIN=matureN[1,],weightIN=WeightAtAgeN[1,],LenAtAgeIN=LenAtAgeN[1,], MaxAge = MaxAge)
+    tempNs[1,1]		<-Recruitment(EggsIN=EggsS,steepnessIN=steepnessS[1],RzeroIN=RzeroS[1],RecErrIN=RecErrS[1,1],recType="BH",NatMin=NatMs[1],
+                               vulnIN=vulnS[1,],matureIN=matureS[1,],weightIN=WeightAtAgeS[1,],LenAtAgeIN=LenAtAgeS[1,], MaxAge = MaxAge)
+    tempRecN[1]		<-tempNn[1,1]
+    tempRecS[1]		<-tempNs[1,1]
+    tempCatchAtAgeN[1,]	<-((vulnN[1,]*HistoricalFn[1])/(vulnN[1,]*HistoricalFn[1]+NatMn[1])) * (1-exp(-(vulnN[1,]*HistoricalFn[1]+NatMn[1]))) * tempNn[1,]
+    tempCatchN[1]		<-sum(tempCatchAtAgeN[1,]*WeightAtAgeN[1,])
+    tempEffortN[1]  <- (1 - exp(-HistoricalFn[1]))/q
+    tempProfitsN[1] <- price*tempCatchN[1] - cost * tempEffortN[1]^cost_beta
+
+
+    tempCatchAtAgeS[1,]	<-((vulnS[1,]*HistoricalFs[1])/(vulnS[1,]*HistoricalFs[1]+NatMs[1])) * (1-exp(-(vulnS[1,]*HistoricalFs[1]+NatMs[1]))) * tempNs[1,]
+    tempCatchS[1]		<-sum(tempCatchAtAgeS[1,]*WeightAtAgeS[1,])
+    tempEffortS[1]  <- (1 - exp(-HistoricalFs[1]))/q
+    tempProfitsS[1] <- price*tempCatchS[1] - cost * tempEffortS[1]^cost_beta
+
+
 
     for (j in 2:InitYear)
     {
-      for (i in 2:(MaxAge-1))
-      {
-        tempNn[j,i]		<-tempNn[j-1,i-1]*exp(-HistoricalFn[j]*vulnN[1,i-1])*exp(-NatMn[j])
-        tempNs[j,i]		<-tempNs[j-1,i-1]*exp(-HistoricalFs[j]*vulnS[1,i-1])*exp(-NatMs[j])
 
+      if (use_fleetmodel == T){
+        HistoricalFn[j] <- simfleet(fleetmodel = fleetmodel, prior_profits = tempProfitsN[j-1], msy_profits = trueProfitsMEY,
+                                    prior_effort = HistoricalEffortn[j-1], q = q, phi = phi)
+
+        HistoricalFs[j] <- simfleet(fleetmodel = fleetmodel, prior_profits = tempProfitsS[j-1], msy_profits = trueProfitsMEY,
+                                    prior_effort = HistoricalEfforts[j-1], q = q, phi = phi)
       }
+
+      tempNn[j,2:(MaxAge - 1)] <-tempNn[j-1,1: (MaxAge - 2)]*exp(-HistoricalFn[j] * vulnN[1, 1 : (MaxAge - 2)])*exp(-NatMn[1])
+
+      tempNs[j,2:(MaxAge - 1)] <-tempNs[j-1,1: (MaxAge - 2)]*exp(-HistoricalFs[j] * vulnS[1, 1 : (MaxAge - 2)])*exp(-NatMs[1])
+
       tempNn[j,MaxAge]	<- (tempNn[j-1,(MaxAge-1)])*exp(-HistoricalFn[j]*vulnN[1,MaxAge])*exp(-NatMn[j])+ tempNn[j-1,MaxAge]*exp(-HistoricalFn[j]*vulnN[1,MaxAge])*exp(-NatMn[j])
       tempNs[j,MaxAge]	<-(tempNs[j-1,(MaxAge-1)])*exp(-HistoricalFs[j]*vulnS[1,MaxAge])*exp(-NatMs[j])+ tempNs[j-1,MaxAge]*exp(-HistoricalFs[j]*vulnS[1,MaxAge])*exp(-NatMs[j])
 
@@ -447,9 +527,17 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
 
       tempCatchAtAgeN[j,]	<-((vulnN[1,]*HistoricalFn[j])/(vulnN[1,]*HistoricalFn[j]+NatMn[j])) * (1-exp(-(vulnN[1,]*HistoricalFn[j]+NatMn[j]))) * tempNn[j-1,]
       tempCatchN[j]		<-sum(tempCatchAtAgeN[j,]*WeightAtAgeN[1,])
+      tempEffortN[j]  <- (1 - exp(-HistoricalFn[j]))/q
+      tempProfitsN[j] <- price*tempCatchN[j] - cost * tempEffortN[j]^cost_beta
+
+
 
       tempCatchAtAgeS[j,]	<-((vulnS[1,]*HistoricalFs[j])/(vulnS[1,]*HistoricalFs[j]+NatMs[j])) * (1-exp(-(vulnS[1,]*HistoricalFs[j]+NatMs[j]))) * tempNs[j-1,]
       tempCatchS[j]		<-sum(tempCatchAtAgeS[j,]*WeightAtAgeS[1,])
+      tempEffortS[j]  <- (1 - exp(-HistoricalFs[j]))/q
+      tempProfitsS[j] <- price*tempCatchS[j] - cost * tempEffortS[j]^cost_beta
+
+
 
     }
   }
@@ -539,8 +627,8 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     projCatchS[x,1:InitYear]		<-tempCatchS
     projRecN[x,1:InitYear]			<-tempRecN
     projRecS[x,1:InitYear]			<-tempRecS
-    projFmortN[x,1:InitYear]		<-HistoricalF
-    projFmortS[x,1:InitYear]		<-HistoricalF
+    projFmortN[x,1:InitYear]		<-HistoricalFn
+    projFmortS[x,1:InitYear]		<-HistoricalFs
     projSurvN[x,1:InitYear]			<-apply(tempNn*survSelN[1:InitYear,]*WeightAtAgeN[1:InitYear,],1,sum)
     projSurvS[x,1:InitYear]			<-apply(tempNs*survSelS[1:InitYear,]*WeightAtAgeS[1:InitYear,],1,sum)
   }
@@ -595,8 +683,8 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
 
   total_numbers <- rbind(total_numbers_n,total_numbers_s)
 
-#   numbers <- left_join(total_numbers, survey_numbers, by = c('iteration','year','age','region')) %>%
-    numbers <- total_numbers %>%
+  #   numbers <- left_join(total_numbers, survey_numbers, by = c('iteration','year','age','region')) %>%
+  numbers <- total_numbers %>%
     gather('number_type','numbers_at_age', contains('_numbers')) #%>%
 
   length_at_age_n <- as.data.frame(LenAtAgeN) %>%
@@ -626,7 +714,7 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     gather('length_bin_index','survey_numbers',2:(length(LengthBinsMid)+1)) %>%
     dplyr::rename(iteration = X1) %>%
     dplyr::mutate(region = 'north', length_bin_index = as.numeric(length_bin_index)) %>%
-      left_join(length_mid_key, by = 'length_bin_index') %>%
+    left_join(length_mid_key, by = 'length_bin_index') %>%
     dplyr::select(-length_bin_index)
 
   survey_lenfreq_s <- adply(projSurvLenFreqS, c(3)) %>% #convert array to dataframe with index for iteration
@@ -664,6 +752,14 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
                                   by = c('iteration', 'year','region','LengthBinsMid')) %>%
     gather('lenfreq_type','numbers', contains('_numbers')) %>%
     dplyr::mutate(lenfreq_type = gsub("\\_.*","",lenfreq_type))
+
+  # Deal with recruits
+
+  recruits_n <- data_frame(year = 1:SimYear, recruits =  as.vector(projRecN), region = 'north')
+
+  recruits_s <- data_frame(year = 1:SimYear, recruits =  as.vector(projRecS), region = 'south')
+
+  recruits <- rbind(recruits_n, recruits_s)
 
   # Deal with Biomass
 
@@ -715,7 +811,35 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     gather('catch_type','catch', contains('_catch')) %>%
     dplyr::mutate(catch_type = gsub("\\_.*","",catch_type))
 
+  # Deal with reference points
+
+  f_n <- data_frame(year = 1:SimYear, f = as.vector(projFmortN), region = 'north')
+
+  f_s <- data_frame(year = 1:SimYear, f = as.vector(projFmortS), region = 'north')
+
+  reference_points <- rbind(f_n, f_s) %>%
+    #     mutate(FvFmsy = f/trueFMSY) %>%
+    left_join(biomass, by = c('year', 'region')) %>%
+    left_join(catch, by = c('year', 'region')) %>%
+    filter(biomass_type == 'ss' & catch_type == 'total') %>%
+    group_by(year) %>%
+    summarise(FvFmsy = mean(f/trueFMSY),BvBmsy = sum(biomass)/trueBMSY, catch_v_msy = sum(catch)/trueMSY)
+  reference_plot <- reference_points %>%
+    #     group_by(year) %>%
+    #     summarise(f = mean(FvFmsy), b = mean(BvBmsy), c = mean(catch_v_msy)) %>%
+    ggplot(aes(BvBmsy,FvFmsy, fill = catch_v_msy)) +
+    scale_fill_gradient2(name = 'Catch/MSY',low = 'blue', mid = 'green', high = 'red', midpoint = 1,
+                         limits = c(0,4)) +
+    geom_path(size = 0.75, alpha = 0.6) +
+    geom_point(shape = 21, size = 3) +
+    geom_hline(aes(yintercept = 1), linetype = 'longdash') +
+    geom_vline(aes(xintercept = 1), linetype = 'longdash') +
+    xlab('B/Bmsy') +
+    ylab('F/Fmsy') +
+    plot_theme
+
   # Deal with CPUE
+
 
   cpue_n <- data_frame(year = 1:SimYear, region = 'north', cpue = as.vector(CPUEAssessN))
 
@@ -724,9 +848,9 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   cpue <- rbind(cpue_n, cpue_s)
 
 
-# Make Froese Indicators --------------------------------------------------
+  # Make Froese Indicators --------------------------------------------------
 
-# Calculate Pmat: proportion of catch that is mature
+  # Calculate Pmat: proportion of catch that is mature
 
   length_at_age_key<- data_frame(age = 1:MaxAge, mean_length = LenAtAgeS[1,])
 
@@ -740,36 +864,36 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   length_50_mat <- LinfN[1]*(1-exp(-VonKn[1]*(mean(c(mat50n,mat50s))-t0n[1])))
 
 
-froese_indicators <- catch_length_frequencies %>%
+  froese_indicators <- catch_length_frequencies %>%
     group_by(iteration,year,LengthBinsMid) %>%
     summarise(catch_at_length = sum(catch_numbers, na.rm = T)) %>%
     ungroup() %>%
     group_by(iteration,year) %>%
-      mutate(total_catch = sum(catch_at_length, na.rm = T) ,
-             is_mature = LengthBinsMid >= length_50_mat,
-             is_opt =  LengthBinsMid >= (0.9 * lopt) & LengthBinsMid <= (1.1 * lopt),
-             is_mega =  LengthBinsMid >= (1.1 * lopt) & LengthBinsMid <= mean(c(LinfN, LinfS))) %>%
-  ungroup() %>%
-  mutate( pl_mat = (catch_at_length / total_catch) * is_mature,
-          pl_opt = (catch_at_length / total_catch) * is_opt,
-          pl_mega = (catch_at_length / total_catch) * is_mega) %>%
-#   filter(LengthBinsMid > length_50_mat & total_catch >0)
+    mutate(total_catch = sum(catch_at_length, na.rm = T) ,
+           is_mature = LengthBinsMid >= length_50_mat,
+           is_opt =  LengthBinsMid >= (0.9 * lopt) & LengthBinsMid <= (1.1 * lopt),
+           is_mega =  LengthBinsMid >= (1.1 * lopt) & LengthBinsMid <= mean(c(LinfN, LinfS))) %>%
+    ungroup() %>%
+    mutate( pl_mat = (catch_at_length / total_catch) * is_mature,
+            pl_opt = (catch_at_length / total_catch) * is_opt,
+            pl_mega = (catch_at_length / total_catch) * is_mega) %>%
+    #   filter(LengthBinsMid > length_50_mat & total_catch >0)
     group_by(year) %>%
-  summarise(p_mat = sum(pl_mat, na.rm = T), p_opt = sum(pl_opt, na.rm = T), p_mega = sum(pl_mega, na.rm = T)) %>%
-  ungroup() %>%
-  mutate(p_obj = p_mat + p_opt + p_mega )
+    summarise(p_mat = sum(pl_mat, na.rm = T), p_opt = sum(pl_opt, na.rm = T), p_mega = sum(pl_mega, na.rm = T)) %>%
+    ungroup() %>%
+    mutate(p_obj = p_mat + p_opt + p_mega )
 
-cope_punt_plot <- froese_indicators %>%
-  gather('Indicator','Value',contains('p_')) %>%
-  ggplot(aes(year,Value, fill = Indicator)) +
-  geom_line(aes(color = Indicator), size = 1, alpha = 0.75) +
-  geom_point(shape = 21, size = 2) +
-  plot_theme #+
-#   scale_fill_economist() +
-#   scale_color_economist()
+  cope_punt_plot <- froese_indicators %>%
+    gather('Indicator','Value',contains('p_')) %>%
+    ggplot(aes(year,Value, fill = Indicator)) +
+    geom_line(aes(color = Indicator), size = 1, alpha = 0.75) +
+    geom_point(shape = 21, size = 2) +
+    plot_theme #+
+  #   scale_fill_economist() +
+  #   scale_color_economist()
 
 
-# Make Plots --------------------------------------------------------------
+  # Make Plots --------------------------------------------------------------
 
 
   length_ogive <- length_at_age %>%
@@ -834,16 +958,16 @@ cope_punt_plot <- froese_indicators %>%
     plot_theme
 
 
-#   plot(record~ssb)
+  #   plot(record~ssb)
 
-catch_plot <- catch %>%
+  catch_plot <- catch %>%
     group_by(year,catch_type) %>%
     summarise(total_catch = sum(catch)) %>%
     ggplot(aes(year,total_catch, fill = catch_type)) +
     geom_point(shape = 21, size = 2) +
     xlab('Year') +
     ylab('Catch') +
-  plot_theme
+    plot_theme
 
   cpue_plot <- cpue %>%
     group_by(year) %>%
@@ -862,12 +986,22 @@ catch_plot <- catch %>%
     xlab('Year') +
     ylab('Biomass') +
     plot_theme
-#   arg <- NA
-#
-#   for (i in 1:30){
-#
-#     arg[i] <- sum(age_structure$numbers_at_age[age_structure$age == i], na.rm = T)
-#   }
+
+  recruits_plot <- recruits %>%
+    group_by(year) %>%
+    summarise(total_recruits = sum(recruits))  %>%
+    ggplot(aes(year,total_recruits)) +
+    geom_point(shape = 21, alpha = 0.75, size = 3, fill = 'red') +
+    xlab('Year') +
+    ylab('# of Recruits') +
+    plot_theme #+
+  #     scale_color_economist()
+  #   arg <- NA
+  #
+  #   for (i in 1:30){
+  #
+  #     arg[i] <- sum(age_structure$numbers_at_age[age_structure$age == i], na.rm = T)
+  #   }
 
   length_plot <- length_frequencies %>%
     ungroup() %>%
@@ -904,6 +1038,6 @@ catch_plot <- catch %>%
   }
 
 
-return(list(catch_data = catch, cpue_data = cpue, age_data = age_structure, length_data = length_frequencies, biomass_data = biomass,
-            plots = plot_list))
+  return(list(catch_data = catch, cpue_data = cpue, age_data = age_structure, length_data = length_frequencies, biomass_data = biomass,
+              plots = plot_list))
 }

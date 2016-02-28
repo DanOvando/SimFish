@@ -1,13 +1,3 @@
-
-# This is the server logic for a Shiny web application.
-# You can find out more about building applications with Shiny here:
-#
-# http://shiny.rstudio.com
-#
-
-
-
-# a = simfish()
 set.seed(123)
 library(shiny)
 library(plyr)
@@ -73,7 +63,8 @@ shinyServer(function(input, output) {
                    sel95n = input$fish_select[2]/100*linf,  sel95s = input$fish_select[2]/100*linf,
                    surv50n = input$surv_select[1]/100*linf, surv50s = input$surv_select[1]/100*linf,
                    surv95n = input$surv_select[2]/100*linf,  surv95s = input$surv_select[2]/100*linf,
-                   HistoricalF = input$f_select)
+                   HistoricalF = input$f_select, recruit_ac = input$recruit_ac,
+                   CalcFMSY = 1, phi = input$phi_select, cost = input$cost_select)
 
 
 #     out <- simfish(SimYear = input$Years)
@@ -108,9 +99,19 @@ shinyServer(function(input, output) {
     simmedpop()$plots$cpue_plot
   })
 
+  output$reference_plot <- renderPlot({
+    simmedpop()$plots$reference_plot
+  })
+
+
   output$catch_trend <- renderPlot({
     simmedpop()$plots$catch_plot
   })
+
+  output$recruits_plot <- renderPlot({
+    simmedpop()$plots$recruits_plot
+  })
+
 
   output$bio_table <- renderTable({
     simmedpop()$biomass_data
