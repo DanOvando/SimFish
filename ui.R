@@ -1,12 +1,3 @@
-
-# This is the user-interface definition of a Shiny web application.
-# You can find out more about building applications with Shiny here:
-#
-# http://shiny.rstudio.com
-#
-
-library(shiny)
-
 shinyUI(fluidPage(theme = 'new_theme.css',
 
   # Application title
@@ -17,9 +8,14 @@ shinyUI(fluidPage(theme = 'new_theme.css',
   sidebarLayout(
     sidebarPanel(
 #       h6('Select number of years for simulation'),
+      downloadButton('downloadModel', 'Download Data', class="dlButton"),
       h6('Select species to use'),
       selectInput(inputId = 'species',label = 'Species',
-                  choices = c('Chita', "Lorna Drum",'Sea Cucumber'), selected = 'Lorna Drum'),
+                  choices = c('Fine Flounder', "Lorna Drum",'Chita'), selected = 'Chita'),
+      selectInput(inputId = 'fleet_select',label = 'Fleet Model',
+                  choices = c('None', "Open Access"), selected = 'Open Access'),
+      selectInput(inputId = 'select_select',label = 'Selectivity Form',
+                  choices = c('Logistic' =  'logistic', 'Slot' = 'slot'), selected = 'logistic'),
       sliderInput("Years",
                   "Number of Years of Simulation:",
                   min = 2,
@@ -32,13 +28,15 @@ shinyUI(fluidPage(theme = 'new_theme.css',
       sliderInput('recruit_ac', 'Recruitment Autocorrelation',
                   min = 0, max = 1, value = 0, step = 0.025),
       br(),
-      sliderInput('fish_select','Fishery Selectivity (% of Max Length)', min = 0, max = 100, value = c(10,10), step = 0.5, pre = '%'),
+      sliderInput('fish_select','Fishery Selectivity (% of Max Length)', min = 0, max = 100, value = c(39,40), step = 0.5, pre = '%'),
       br(),
-      sliderInput('f_select','Fishing Mortality Rate', min = 0, max = 3, value = c(0.3), step = 0.05),
+      sliderInput('f_select','Fishing Mortality Rate', min = 0, max = 2, value = c(1), step = 0.025),
       br(),
-      sliderInput('phi_select','Fleet Response', min = 0, max = 1, value = c(0.025), step = 0.05),
+      sliderInput('phi_select','Fleet Response', min = 0, max = 0.25, value = c(.1), step = 0.001),
+      sliderInput('tech_select','Technology Rate', min = -10, max = 10, value = c(0), step = 0.5, pre = '%'),
+
       br(),
-      sliderInput('cost_select','Cost', min = 0, max = 2, value = c(0.5), step = 0.05),
+      sliderInput('cr_ratio_select','Cost', min = 0, max = 1, value = c(0.6), step = 0.025),
       br(),
       sliderInput('surv_select','Survey Selectivity (% of Max Length)', min = 0,
                   max = 100, value = c(10,10), step = 0.5, pre = '%')),

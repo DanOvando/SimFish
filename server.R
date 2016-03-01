@@ -48,6 +48,76 @@ shinyServer(function(input, output) {
 
 
     }
+    if (input$species == 'Fine Flounder')
+    {
+
+      MaxAge <- 25
+
+      vbk <- 0.196
+
+      linf <- 1011.7
+
+      t0 <- -0.808
+
+      mat50 <- 4
+
+      mat95 <- 5
+
+      alpha <- 0.00013
+
+      beta <- 2.63
+
+      Rzero <- 3e6
+
+      MaxMove <- 5
+
+      Move50 <- 4
+
+      Move95 <- 5
+
+      steepness <- 0.8
+
+      sigmaR <- 0.1
+
+      NatM <- 0.2
+
+
+    }
+    if (input$species == 'Chita')
+    {
+
+      MaxAge <- 25
+
+      vbk <- 0.11
+
+      linf <- 650
+
+      t0 <- -2.12
+
+      mat50 <- 4
+
+      mat95 <- 5
+
+      alpha <- 0.00013
+
+      beta <- 3.14
+
+      Rzero <- 3e6
+
+      MaxMove <- 5
+
+      Move50 <- 4
+
+      Move95 <- 5
+
+      steepness <- 0.7
+
+      sigmaR <- 0.1
+
+      NatM <- 0.2
+
+
+    }
 
     out <- simfish(SimYear = input$Years, VonKn = vbk, VonKs = vbk,
                    LinfN = linf, LinfS = linf, t0n = t0, t0s = t0,
@@ -64,7 +134,9 @@ shinyServer(function(input, output) {
                    surv50n = input$surv_select[1]/100*linf, surv50s = input$surv_select[1]/100*linf,
                    surv95n = input$surv_select[2]/100*linf,  surv95s = input$surv_select[2]/100*linf,
                    HistoricalF = input$f_select, recruit_ac = input$recruit_ac,
-                   CalcFMSY = 1, phi = input$phi_select, cost = input$cost_select)
+                   CalcFMSY = 1, phi = input$phi_select, cr_ratio = input$cr_ratio_select,
+                   fleetmodel = input$fleet_select, select_model = input$select_select,
+                   tech_rate = input$tech_select/100)
 
 
 #     out <- simfish(SimYear = input$Years)
@@ -117,6 +189,24 @@ shinyServer(function(input, output) {
     simmedpop()$biomass_data
   })
 
+  storesim <- reactiveValues()
+  observe({
+    if(!is.null(simmedpop()))
+      isolate(
+        storedsim <<- simmedpop()
+      )
+  })
+
+  # Download Random Forest Model
+  output$downloadModel <- downloadHandler(
+    filename <- function(){
+      paste("SimFish.RData")
+    },
+
+    content = function(file) {
+      save(storedsim, file = file)
+    }
+  )
 
 
 

@@ -1,8 +1,8 @@
 name: SNAP-Peru-SimFish
 account: danovando
 server: shinyapps.io
-bundleId: 379545
+bundleId: 383935
 url: https://danovando.shinyapps.io/SNAP-Peru-SimFish/
-when: 1456337697.41113
+when: 1456793052.01234
 asMultiple: FALSE
 asStatic: FALSE
