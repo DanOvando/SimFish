@@ -66,7 +66,7 @@
 simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, CalcFMSY = 1,
                     SmallNum = 1e-4, InitSmooth = 3, FmortPen = 3, RecruitPen = 3,
                     CatchCVn = 0.01, CatchCVs = 0.01, IndexCVn = 0.05, IndexCVs = 0.05,
-                    LenSampleN= 200, LenSampleS = 200, GrowthSDn = 25, GrowthSDs = 25,
+                    LenSampleN= 200, LenSampleS = 200, GrowthSDfactor= .025,
                     surv50n = 90, surv95n =  150, surv50s = 90, surv95s = 150,
                     MaxAge = 30, NatMn = 0.2, NatMs = 0.2, VonKn = 0.2, VonKs = 0.2, LinfN = 300,
                     LinfS = 300, t0n = 0.9, t0s = 0.9, mat50n = 6, mat50s = 6, mat95n = 8, mat95s = 8,
@@ -77,14 +77,15 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
                     sel50n = 190, sel50s = 190, sel95n = 225, sel95s = 225, HarvestControl = 3,
                     HistoricalF = 0.3, ConstantCatch = 0, ConstantF = 0.1, HCalpha = 0.05, HCbeta = 0.5,
                     price = 1, cr_ratio = 0.6, cost_beta = 1.1, q = 1e-5, tech_rate = 0, use_fleetmodel = T, fleetmodel = 'Open Access',
-                    phi = 0.025, select_model = 'logistic', p_sampled = 0.2, sd_sample = 0)
+                    phi = 0.025, select_model = 'logistic', p_sampled = 0.2, sd_sample = 0,
+                    fm_ratio = 0.6)
 {
 
   #=======================
   #==simulation controls==
   #=======================
 
-  plot_theme <- theme_economist() + theme(text = element_text(size = 12))
+  plot_theme <- theme_economist() + theme(text = element_text(size = 24))
 
 
 
@@ -117,10 +118,10 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   NatMs		<-  CleanInput(NatMs, SimYear)
 
   #==Length at age====================
-  VonKn		<-  CleanInput(VonKn, SimYear)
-  LinfN		<-  CleanInput(LinfN,SimYear)
-  t0n		<-  CleanInput(t0n, SimYear)
-  LenAtAgeN	<-matrix(nrow=SimYear,ncol=MaxAge)
+  VonKn	<- CleanInput(VonKn, SimYear)
+  LinfN	<- CleanInput(LinfN,SimYear)
+  t0n		<- CleanInput(t0n, SimYear)
+  LenAtAgeN	<- matrix(nrow=SimYear,ncol=MaxAge)
   for(i in 1:SimYear)
     LenAtAgeN[i,]<-LinfN[i]*(1-exp(-VonKn[i]*(Ages-t0n[i])))
 
@@ -131,14 +132,13 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   for(i in 1:SimYear){
     LenAtAgeS[i,]<- LinfS[i]*(1-exp(-VonKs[i]*(Ages-t0s[i])))
   }
-
   #==specify the number of length bins
   #   browser()
-  #   BinWidth<-(max(LenAtAgeS,LenAtAgeN)*1.05)/MaxAge
-  #   LengthBins <- seq(0,max(LenAtAgeS,LenAtAgeN)*1.05,by = BinWidth)
-  LengthBins <- seq(0,max(LenAtAgeS,LenAtAgeN)*1.05,by = 5)
+  LengthBins <- seq(min(c(LenAtAgeN, LenAtAgeS)),max(c(LenAtAgeS,LenAtAgeN))*1.1,by = 5)
 
-  LengthBinsMid <- LengthBins[1:(length(LengthBins)-1)] + mean(LengthBins[1:2])
+  LengthBinsMid <- (LengthBins[2:length(LengthBins)] + LengthBins[1:(length(LengthBins) - 1)])/2
+
+  #     LengthBins[1:(length(LengthBins)-1)] + mean(LengthBins[1:2])
   #==maturity at age==========================
   mat50n	<- CleanInput(mat50n, SimYear)
   mat95n	<- CleanInput(mat95n, SimYear)
@@ -246,9 +246,8 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   LenSampleN	<- LenSampleN
   LenSampleS	<- LenSampleS
 
-  GrowthSDn	<- GrowthSDn
-  GrowthSDs	<- GrowthSDs
-
+  GrowthSDn	<- GrowthSDfactor * LinfN
+  GrowthSDs	<- GrowthSDfactor * LinfS
 
   #==index selectivity=====================
   surv50n	<- CleanInput(surv50n, SimYear)
@@ -549,10 +548,7 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
       } #close length bin loop
       projPopLenFreqN[y,,x]<- colSums(tempPopAtLenN)
       projPopLenFreqS[y,,x]<- colSums(tempPopAtLenS)
-      #       projCatLenFreqN[y,,x]<-apply(tempCatAtLenN,2,sum)
-      #       projCatLenFreqS[y,,x]<-apply(tempCatAtLenS,2,sum)
     } # close year loop
-
   #==============================================================
   # calculate the catch proportion at (length) for assessment
   #==============================================================
@@ -560,7 +556,7 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   tempCatAtLenS<-matrix(nrow=MaxAge,ncol=length(LengthBinsMid))
 
   for(x in 1:Nsim)
-    for(y in 2:InitYear)
+    for(y in 1:InitYear)
     {
       #==make length frequencies for catch==
       for(w in 1:MaxAge)
@@ -574,10 +570,7 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
       } #close length bin loop
       projCatLenFreqN[y,,x]<- colSums(tempCatAtLenN)
       projCatLenFreqS[y,,x]<- colSums(tempCatAtLenS)
-      #       projCatLenFreqN[y,,x]<-apply(tempCatAtLenN,2,sum)
-      #       projCatLenFreqS[y,,x]<-apply(tempCatAtLenS,2,sum)
     } # close year loop
-
   #==============================================================
   # calculate the catch survey proportion at length for assessment
   #==============================================================
@@ -604,7 +597,6 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
       #       projCatLenFreqN[y,,x]<-apply(tempCatAtLenN,2,sum)
       #       projCatLenFreqS[y,,x]<-apply(tempCatAtLenS,2,sum)
     } # close year loop
-
   #==transfer historical time series from above
   for(x in 1:Nsim)
   {
@@ -766,6 +758,11 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     gather('lenfreq_type','numbers', contains('_numbers')) %>%
     dplyr::mutate(lenfreq_type = gsub("\\_.*","",lenfreq_type))
 
+  LengthDat <- length_frequencies %>%
+    filter(lenfreq_type == 'survey') %>%
+    group_by(iteration, year, LengthBinsMid) %>%
+    summarise(total_numbers = sum(numbers, na.rm = T))
+
   # Deal with recruits
 
   recruits_n <- data_frame(year = 1:SimYear, recruits =  as.vector(projRecN), region = 'north')
@@ -850,7 +847,7 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     geom_vline(aes(xintercept = 1), linetype = 'longdash') +
     xlab('B/Bmsy') +
     ylab('F/Fmsy') +
-#     xlim(c(0,4)) +
+    #     xlim(c(0,4)) +
     #     ylim(0,5) +
     plot_theme +
     theme(legend.text = element_text(size = 8))
@@ -864,10 +861,27 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
 
   cpue <- rbind(cpue_n, cpue_s)
 
+  # Deal with Effort --------------------------------------------------------
 
-  # Make Froese Indicators --------------------------------------------------
+  effort_n <- data_frame(year = 1:SimYear, region = 'north', effort = as.vector(tempEffortN))
 
-  # Calculate Pmat: proportion of catch that is mature
+  effort_s <- data_frame(year = 1:SimYear, region = 'south', effort = as.vector(tempEffortS))
+
+  effort <- rbind(effort_n, effort_s) %>%
+    group_by(year) %>%
+    summarise(total_effort = sum(effort))
+
+  #   browser()
+  #   effort_at_age <- as.data.frame(vulnN * effort$total_effort) %>%
+  #     mutate(year = 1:SimYear) %>%
+  #     gather('age','effort', contains('V')) %>%
+  #     dplyr::mutate(age = gsub('V','', age))
+
+
+  # Catch Curves --------------------------------------------------
+
+
+
 
   length_at_age_key<- data_frame(age = 1:MaxAge, mean_length = LenAtAgeS[1,])
 
@@ -876,12 +890,47 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     mutate(max_bio= virgin_bio == max(virgin_bio, na.rm = T)) %>%
     filter(max_bio == T)
 
+  # Calculate Pmat: proportion of catch that is mature
+
   lopt <- calc_lopt$mean_length
 
   length_50_mat <- LinfN[1]*(1-exp(-VonKn[1]*(mean(c(mat50n,mat50s))-t0n[1])))
 
+  Fish <- list(Linf = mean(LinfN), vbk = mean(VonKn), t0 = mean(t0n), LengthError = 0,
+               MvK = mean(NatMn/VonKn), MinMvK = mean(.75* NatMn/VonKn), MaxMvK = mean(1.25 *NatMn/VonKn),
+               LengthMatRatio = mean(length_50_mat/LinfN), MinLengthMatRatio = mean(0.75 * length_50_mat/LinfN),
+               MaxLengthMatRatio = mean(1.25 * length_50_mat/LinfN), Alpha = 0.5 )
 
-  froese_indicators <- catch_length_frequencies %>%
+  catch_curve_fits <- catch_curve(LengthDat = LengthDat, ManualM = 1, Fish = Fish, LifeError = 0,length_at_age_key = length_at_age_key)
+  # head(catch_curve_fits$it_results)
+  catch_curve_plot <- catch_curve_fits$it_results %>%
+    filter(year == max(year)) %>%
+    ggplot() +
+    geom_point(aes(age,log_counts),shape = 21, fill = 'red', size = 2) +
+    geom_line(aes(age, predicted_log_count)) +
+    facet_wrap(~year) +
+    plot_theme
+
+  f_trend <- data_frame(year = 1:SimYear, real_f = HistoricalFn, real_m = NatMn, real_fmsy = trueFMSY )
+
+  damnit <- fm_ratio
+
+  catch_curve_trend_plot <- catch_curve_fits$it_results %>%
+    left_join(f_trend, by = 'year') %>%
+    group_by(year) %>%
+    summarise(mean_z = mean(z), mean_f = mean(f), mean_m = mean(m), mean_real_f = mean(real_f),
+              mean_real_m = mean(real_m), mean_real_fmsy = mean(real_fmsy)) %>%
+    ggplot() +
+    geom_point(aes(year,mean_f/(mean_m*damnit), fill = 'Predicted'),shape = 21, size = 2) +
+    geom_point(aes(year, mean_real_f/mean_real_fmsy, fill = 'Real'),shape = 21, size = 2) +
+    plot_theme +
+    ylab('F') +
+    xlab('Años') +
+    scale_fill_discrete(name = '')
+
+
+  # Make froese indicators --------------------------------------------------
+  froese_dat <- catch_length_frequencies %>%
     group_by(iteration,year,LengthBinsMid) %>%
     summarise(catch_at_length = sum(catch_numbers, na.rm = T)) %>%
     ungroup() %>%
@@ -891,6 +940,37 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
            is_opt =  LengthBinsMid >= (0.9 * lopt) & LengthBinsMid <= (1.1 * lopt),
            is_mega =  LengthBinsMid >= (1.1 * lopt) & LengthBinsMid <= mean(c(LinfN, LinfS))) %>%
     ungroup() %>%
+    mutate(vuln =  1/(1+exp(-1*log(19)*(LengthBinsMid-sel50n[1])/(sel95n[1]-sel50n[1])))) %>%
+    group_by(year) %>%
+    mutate(scaled_vuln = vuln / sum(vuln)) %>%
+    ungroup() %>%
+    left_join(effort, by = 'year') %>%
+    mutate(effort_at_length = total_effort * scaled_vuln)
+
+
+  froese_dat$froese_cat <- NA
+
+  froese_dat$froese_cat[froese_dat$is_mature == T] <- 'Mature'
+
+  froese_dat$froese_cat[froese_dat$is_opt == T] <- 'Opt'
+
+  froese_dat$froese_cat[froese_dat$is_mega == T] <- 'Mega'
+
+  froese_dat$froese_cat[is.na(froese_dat$froese_cat)] <- 'Immature'
+
+  cpue_by_group <- froese_dat %>%
+    ungroup() %>%
+    group_by(year,froese_cat) %>%
+    summarise(cpue = sum(catch_at_length, na.rm = T)/sum(effort_at_length, na.rm = T))
+
+  cpue_by_group_plot <- cpue_by_group %>%
+    filter(froese_cat != 'Opt' & year >1) %>%
+    ggplot(aes(year,cpue, color = froese_cat)) +
+    geom_point(size = 2,shape = 21, aes(fill = froese_cat), color = 'black') +
+    geom_line() +
+    plot_theme
+
+  froese_indicators <-  froese_dat %>%
     mutate( pl_mat = (catch_at_length / total_catch) * is_mature,
             pl_opt = (catch_at_length / total_catch) * is_opt,
             pl_mega = (catch_at_length / total_catch) * is_mega) %>%
@@ -899,6 +979,42 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
     summarise(p_mat = sum(pl_mat, na.rm = T), p_opt = sum(pl_opt, na.rm = T), p_mega = sum(pl_mega, na.rm = T)) %>%
     ungroup() %>%
     mutate(p_obj = p_mat + p_opt + p_mega )
+
+
+  joint_metrics <- biomass %>%
+    filter(biomass_type == 'ss') %>%
+    left_join(filter(catch, catch_type == 'total'), by = c('year', 'region')) %>%
+    left_join(cpue, by = c('year','region')) %>%
+    group_by(year) %>%
+    summarise(total_biomass = sum(biomass), total_catch = sum(catch),
+              mean_cpue = mean(cpue)) %>%
+    left_join(froese_indicators, by = c('year'))
+
+  bvcpue_plot <- ggplot(joint_metrics, aes(total_biomass,mean_cpue, fill = year)) +
+    geom_point(shape = 21) +
+    xlab('Biomasa') +
+    ylab('CPUE') +
+    plot_theme
+
+  bvcatch_plot <- ggplot(joint_metrics, aes(total_biomass,total_catch, fill = year)) +
+    geom_point(shape = 21) +
+    xlab('Biomasa') +
+    ylab('CPUE') +
+    plot_theme
+
+  bvfroese_plot <- ggplot(joint_metrics, aes(total_biomass,p_obj, fill = year)) +
+    geom_point(shape = 21) +
+    xlab('Biomasa') +
+    ylab('Froese Indicators') +
+    plot_theme
+
+  b_v_cpue_v_time_plot <- ggplot(joint_metrics) +
+    geom_point(aes(year,mean_cpue/max(mean_cpue), color = 'CPUE')) +
+    geom_point(aes(year, total_biomass/max(total_biomass, na.rm = T), color = 'Biomasa')) +
+    plot_theme +
+    xlab('Tiempo') +
+    ylab('Valor') +
+    scale_color_discrete(name = 'Metrico')
 
   cope_punt_plot <- froese_indicators %>%
     gather('Indicator','Value',contains('p_')) %>%
@@ -980,8 +1096,9 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
   catch_plot <- catch %>%
     group_by(year,catch_type) %>%
     summarise(total_catch = sum(catch)) %>%
+    filter(catch_type == 'total') %>%
     ggplot(aes(year,total_catch, fill = catch_type)) +
-    geom_smooth(size = 0.75, alpha = 0.75) +
+    #     geom_smooth(size = 0.75, alpha = 0.75) +
     geom_point(shape = 21, size = 2) +
     xlab('Year') +
     ylab('Catch') +
@@ -1069,5 +1186,5 @@ simfish <- function(Nsim = 1, SimYear = 50, depletion = 0, CatchShareN = 1, Calc
 
 
   return(list(catch_data = catch, cpue_data = cpue, age_data = age_structure, length_data = length_frequencies, biomass_data = biomass,
-              plots = plot_list))
+              plots = plot_list,joint_metrics = joint_metrics, catch_curve = catch_curve_fits))
 }

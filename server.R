@@ -51,7 +51,7 @@ shinyServer(function(input, output) {
     if (input$species == 'Fine Flounder')
     {
 
-      MaxAge <- 25
+      MaxAge <- 10
 
       vbk <- 0.196
 
@@ -79,7 +79,7 @@ shinyServer(function(input, output) {
 
       sigmaR <- 0.1
 
-      NatM <- 0.2
+      NatM <- 0.4
 
 
     }
@@ -110,11 +110,11 @@ shinyServer(function(input, output) {
 
       Move95 <- 5
 
-      steepness <- 0.7
+      steepness <- 0.5
 
       sigmaR <- 0.1
 
-      NatM <- 0.2
+      NatM <- 0.4
 
 
     }
@@ -136,7 +136,7 @@ shinyServer(function(input, output) {
                    HistoricalF = input$f_select, recruit_ac = input$recruit_ac,
                    CalcFMSY = 1, phi = input$phi_select, cr_ratio = input$cr_ratio_select,
                    fleetmodel = input$fleet_select, select_model = input$select_select,
-                   tech_rate = input$tech_select/100)
+                   tech_rate = input$tech_select/100, fm_ratio = input$fm_select)
 
 
 #     out <- simfish(SimYear = input$Years)
@@ -184,10 +184,61 @@ shinyServer(function(input, output) {
     simmedpop()$plots$recruits_plot
   })
 
-
-  output$bio_table <- renderTable({
-    simmedpop()$biomass_data
+  output$catch_curve_plot <- renderPlot({
+    simmedpop()$plots$catch_curve_plot
   })
+
+  output$catch_curve_trend_plot <- renderPlot({
+    simmedpop()$plots$catch_curve_trend_plot
+  })
+
+
+  output$bvcatch_plot <- renderPlot({
+    simmedpop()$plots$bvcatch_plot
+
+#     ggplot(dat,aes(input$x_compare, input$y_compare, fill = year)) +
+#       geom_point() +
+#       theme_economist() +
+#       theme(text = element_text(size = 18))
+  })
+
+  output$bvcpue_plot <- renderPlot({
+    simmedpop()$plots$bvcpue_plot
+
+    #     ggplot(dat,aes(input$x_compare, input$y_compare, fill = year)) +
+    #       geom_point() +
+    #       theme_economist() +
+    #       theme(text = element_text(size = 18))
+  })
+
+  output$bvfroese_plot <- renderPlot({
+    simmedpop()$plots$bvfroese_plot
+
+    #     ggplot(dat,aes(input$x_compare, input$y_compare, fill = year)) +
+    #       geom_point() +
+    #       theme_economist() +
+    #       theme(text = element_text(size = 18))
+  })
+
+  output$b_v_cpue_plot <- renderPlot({
+    simmedpop()$plots$b_v_cpue_v_time_plot
+
+  })
+
+  output$prince_plot <- renderPlot({
+    simmedpop()$plots$cpue_by_group_plot
+
+  })
+
+
+
+#   output$bio_table <- renderTable({
+#     simmedpop()$biomass_data
+#   })
+
+#   output$catchcurve_table <- renderTable({
+#     simmedpop()$catch_curve_fits$Output
+#   })
 
   storesim <- reactiveValues()
   observe({
