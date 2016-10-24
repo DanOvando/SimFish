@@ -31,9 +31,11 @@ shinyUI(fluidPage(theme = 'new_theme.css',
                       sliderInput('recruit_ac', 'Autocorrelation de Reclutamiento',
                                   min = 0, max = 1, value = 0, step = 0.025),
                       sliderInput('fm_select', 'Ratio de F y M',
-                                  min = 0.2, max = 1, value = 0.2, step = 0.025),
+                                  min = 0.2, max = 1, value = 0.4, step = 0.025),
                       sliderInput('surv_select','Selectividad de Muestras (% de Tamaño Maximo)', min = 0,
-                                  max = 100, value = c(10,10), step = 0.5, pre = '%')
+                                  max = 100, value = c(10,10), step = 0.5, pre = '%'),
+                      sliderInput('GrowthCV_select', 'Variación en Tamaño en Edad',
+                                  min = 0.001, max = .2, value = 0.025, step = 0.025)
                       #                       selectInput(inputId = 'x_compare',label = 'Comparación 1',
                       #                                   choices = c('Captura' = 'total_catch','CPUE' = 'mean_cpue',
                       #                                               'Biomasa' = 'total_biomass','Froese' = 'p_obj'),selected = 'total_biomass'),
@@ -50,16 +52,16 @@ shinyUI(fluidPage(theme = 'new_theme.css',
                                   tabPanel("Captura",plotOutput("catch_trend")),
                                   tabPanel("Biomassa",plotOutput("biomass_trend")),
                                   tabPanel("Muestras de Tamaño",plotOutput("length_freq")),
-                                  #                                   tabPanel("Raw Data", tableOutput('bio_table')),
-                                  tabPanel("Recruitment", plotOutput('recruits_plot')),
+                                  tabPanel("SPR", plotOutput('spr_plot')),
+                                  tabPanel("Reclutamiento", plotOutput('recruits_plot')),
                                   tabPanel("CPUE v Biomasa", plotOutput('bvcatch_plot')),
                                   tabPanel("Catch v Biomasa", plotOutput('bvcpue_plot')),
                                   tabPanel("Froese v Biomasa", plotOutput('bvfroese_plot')),
                                   tabPanel("CPUE y Biomasa", plotOutput('b_v_cpue_plot')),
                                   tabPanel("Indicadores de Prince", plotOutput('prince_plot')),
-
                                   tabPanel("Curva de Captura", plotOutput('catch_curve_plot')),
-                                  tabPanel("Curva de Captura Tendencia", plotOutput('catch_curve_trend_plot'))
+                                  tabPanel("Curva de Captura Tendencia", plotOutput('catch_curve_trend_plot')),
+                                  tabPanel("Curva de Captura Relativo Tendencia", plotOutput('catch_curve_fvm_trend_plot'))
 
 
 

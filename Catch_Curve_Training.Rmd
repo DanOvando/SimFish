@@ -1,0 +1,172 @@
+---
+title: "Curvas de Captura"
+author: "Dan Ovando"
+date: "March 3, 2016"
+output: html_document
+---
+
+Este documento de entrenamíento en el uso de un "catch curve" (CC) en algunos pases basicos, con codigo sugerido. 
+
+Para recorder, el objtivo es usar muestras de tamaños para estimar la mortalidad pesquero en una población. 
+
+La teoria va algo como esto. Pensamos en una población que empieza con 100 pesces. Este población tiene une taza de mortalidad constante. Se puede ver que, sin emigración y imigración, los numeros en eded se miran como: 
+
+```{r n_at_age, message=F, warning=F}
+
+# install.packages('ggplot2')
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(texreg)
+
+N <- rep(100,26)
+
+N <- N*exp(-.2*(0:25))
+
+n_frame <- data_frame(tiempo = 0:25, n = N, log_n = log(N))
+
+slope <- coef(lm(log_n ~ tiempo, data = n_frame))[2]
+```
+
+```{r plot nums, echo=F}
+
+ggplot(n_frame, aes(tiempo,n)) + 
+  geom_point() + 
+  ylab('#s')
+```
+
+Convertiendo en logaritmo y regresando una linea, vemos que si la taza es lo que creemos. 
+
+```{r plot logn, echo=F}
+ggplot(n_frame, aes(tiempo,log_n)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm') +
+  ylab('Log #s') + 
+  geom_label(aes(15,3), label = paste('Taza = ',slope, sep = ''))
+
+```
+
+La idea ahora es aser esto con datos. Primero, entramos datos. 
+
+```{r load data}
+
+load('SimFish.Rdata')
+
+tallas <- storedsim$LengthDat %>%
+  filter(year == max(year))
+
+pes <- storedsim$Fish
+
+head(tallas)
+
+```
+
+Siempre grafa sus datos! Miras la histograma de tallas
+
+```{r length his, echo=F}
+
+ggplot(tallas,aes(round(LengthBinsMid, 0 ), total_numbers)) + 
+  geom_bar(stat = 'identity') + 
+  ylab('#s') + 
+  xlab('Tamaño (mm)')
+
+```
+
+Podemos ver ya que los tamaños se ven razonables, pero quizas hay unos pulsos de reclutamiento. 
+
+Ahora, nuestro proximo objetivo es convertir estos tallas a edades. 
+
+si el Von Bertalanfy equacion es 
+
+$$ L_{t} = L_{inf}(1 - e^{-k(t - t_{o})}) $$ 
+
+Entonces podemos invertir esto para llegar a
+
+$$ t = (log(1 - L_{t}/L_{inf})/-k) + t_{0} $$
+
+estos nos da:
+
+```{r convert to ages}
+
+tallas <- tallas %>%
+  ungroup() %>%
+  mutate(edad = (log(1 - LengthBinsMid / pes$Linf) / - pes$vbk) + pes$t0, log_edad = log(edad))
+
+ggplot(tallas, aes(edad, LengthBinsMid)) + 
+  geom_point() + 
+  xlab('Edad') + 
+  ylab('Tamańo (mm)')
+
+```
+
+Podemos entonces ver histogramas de edad y logaritmo de edad
+
+```{r more plots}
+
+ggplot(tallas, aes(edad)) + 
+  geom_histogram() + 
+  xlab('Edad') + 
+  ylab('Cuento')
+
+
+cuentas <- hist(tallas$edad, plot = F, breaks = 1:ceiling(max(tallas$edad, na.rm = T)))
+
+histogramas <- data_frame(edad = cuentas$mids, numeros = cuentas$counts, log_numeros = log(cuentas$counts))
+
+unique(histogramas$log_numeros)
+```
+
+Vemos que tenemos una problema aqui. El lograitmo de 0 es -inf. Entonces, necesitamos correctar eso. 
+
+```{r}
+histogramas$log_numeros[is.finite(histogramas$log_numeros) == F] <- NA
+```
+
+
+```{r}
+
+ggplot(histogramas, aes(edad, log_numeros)) + 
+  geom_point(shape = 21, size = 3, fill = 'red') +
+  xlab('Edad') + 
+  ylab('log(Cuento)')
+
+```
+
+Ya casi alli! Ahora escohemos dos puntos. Queremos en este instante selectar la moda de los log(cuentas), y camos con en ultimo valor antes de un cero. 
+
+```{r show selection}
+
+moda <- which.max(histogramas$log_numeros) #selecta la moda
+
+ultimo_punto <- (which(is.na(histogramas$log_numeros))[1]) - 2 #selecta el ultimo punta antes de un cero
+
+```
+
+Y ahora, usamos una regresión para obetener la taza de mortalidad!
+
+```{r run regression, echo=T}
+
+reg <- lm(log_numeros ~ edad, data = histogramas[moda:ultimo_punto,])
+
+histogramas$predicted <- histogramas$edad * reg$coefficients[2] + reg$coefficients[1]
+
+ggplot(histogramas, aes(edad, log_numeros)) + 
+  geom_point(shape = 21, size = 3, fill = 'red') +
+  geom_line(data = histogramas[moda:ultimo_punto,],aes(edad, predicted)) + 
+  xlab('Edad') + 
+  ylab('log(Cuento)')
+
+```
+
+
+
+```{r,echo=FALSE,results='asis'}
+htmlreg(reg, ci.force = T)
+```
+
+Entonces, nuestro estimacion de mortalidad total es `r -coef(reg)[2]`. 
+
+Si pensamos que mortalidad natural es 0.2, y la relacion dentre *m* y *k* es 1.2, entonces *m* es
+`r pes$vbk*1.2`, y F es `r -coef(reg)[2] - pes$vbk*1.6`
+
+
